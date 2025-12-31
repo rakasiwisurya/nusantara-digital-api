@@ -30,3 +30,5 @@ npm-error.log*
 /assets/avatar/*
 !/assets/avatar/.gitkeep
 /generated/prisma
+/uploads/*
+!/uploads/.gitkeep

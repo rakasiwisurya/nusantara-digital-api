@@ -6,6 +6,7 @@ import {
   responseInternalServerError,
   responseSuccess,
 } from "../libs/response";
+import { employeeQueue } from "../queues/employee";
 
 export const addEmployee = async (req: Request, res: Response) => {
   const { name, age, position, salary } = req.body;
@@ -23,7 +24,7 @@ export const addEmployee = async (req: Request, res: Response) => {
 
   try {
     await prisma.$transaction(async (prisma) => {
-      await prisma.employee.create({
+      const employee = await prisma.employee.create({
         data: {
           name,
           age,
@@ -32,7 +33,9 @@ export const addEmployee = async (req: Request, res: Response) => {
         },
       });
 
-      responseSuccess(res, "Success add new data", null);
+      await employeeQueue.add("created", { employeeId: employee.id });
+
+      responseSuccess(res, "Success add new data", { id: employee.id });
     });
   } catch (error) {
     responseInternalServerError(res, error);

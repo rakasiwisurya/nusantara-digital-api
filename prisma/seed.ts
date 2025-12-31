@@ -1,4 +1,8 @@
-import "dotenv/config";
+import dotenv from "dotenv";
+
+dotenv.config();
+dotenv.config({ path: ".env.local" });
+
 import { PrismaClient } from "../generated/prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
@@ -22,7 +26,7 @@ async function main() {
     },
   });
 
-  console.log("Admin user seeded");
+  console.info("Admin user seeded");
 }
 
 main()
