@@ -6,6 +6,7 @@
   "scripts": {
     "build": "tsc",
     "start": "cross-env NODE_ENV=production node dist/index.js",
+    "start:worker": "cross-env NODE_ENV=production node dist/workers/employee.js",
     "dev:start": "cross-env NODE_ENV=development concurrently \"tsc --watch\" \"nodemon -q dist/index.js\"",
     "dev:worker": "cross-env NODE_ENV=development ts-node-dev src/workers/employee.ts",
     "dev": "concurrently \"npm run dev:start\" \"npm run dev:worker\"",

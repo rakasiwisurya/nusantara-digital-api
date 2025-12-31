@@ -1,7 +1,7 @@
 import IORedis from "ioredis";
 
 export const redis = new IORedis({
-  host: "localhost",
-  port: 6379,
+  host: process.env.REDIS_HOST,
+  port: Number(process.env.REDIS_PORT),
   maxRetriesPerRequest: null,
 });
