@@ -25,6 +25,7 @@ server/
 │  ├─ index.ts
 │  ├─ routes/
 │  ├─ controllers/
+│  ├─ middlewares/
 │  ├─ workers/
 │  │  └─ employee.ts
 │  ├─ db/

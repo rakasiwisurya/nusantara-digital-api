@@ -6,27 +6,34 @@ dotenv.config({ path: ".env.local" });
 import { Worker } from "bullmq";
 import csv from "csv-parser";
 import fs from "fs";
-import { notify } from "../controllers/notification";
 import { prisma } from "../db/prisma";
 import { redis } from "../libs/redis";
+
+const BATCH_SIZE = 500;
 
 new Worker(
   "employee",
   async (job) => {
-    console.info("Employee worker running...");
+    console.info(`[WORKER] Job started: ${job.name} (${job.id})`);
 
     if (job.name === "created") {
-      notify({ message: "Employee created", id: job.data.employeeId });
-      return;
+      console.info(
+        `[WORKER] Job employee created (${job.data.employeeId} rows)`
+      );
     }
 
     if (job.name === "import-csv") {
-      return new Promise((resolve, reject) => {
-        const batchSize = 500;
-        let batch: any[] = [];
-        let count = 0;
+      const filePath = job.data.path;
 
-        const stream = fs.createReadStream(job.data.path).pipe(csv());
+      if (!filePath || !fs.existsSync(filePath)) {
+        throw new Error("CSV file not found");
+      }
+
+      return new Promise<void>((resolve, reject) => {
+        let batch: any[] = [];
+        let processed = 0;
+
+        const stream = fs.createReadStream(filePath).pipe(csv());
 
         stream.on("data", (row) => {
           batch.push({
@@ -36,17 +43,18 @@ new Worker(
             salary: Number(row.salary),
           });
 
-          if (batch.length === batchSize) {
+          if (batch.length === BATCH_SIZE) {
             stream.pause();
 
             prisma.employee
               .createMany({ data: batch })
-              .then(() => {
-                count += batch.length;
+              .then(async () => {
+                processed += batch.length;
                 batch = [];
-                return redis.set(`import:${job.id}`, count);
-              })
-              .then(() => {
+
+                await redis.set(`import:${job.id}`, processed);
+                await redis.set(`import:${job.id}:status`, "processing");
+
                 stream.resume();
               })
               .catch((err) => {
@@ -60,21 +68,30 @@ new Worker(
           try {
             if (batch.length > 0) {
               await prisma.employee.createMany({ data: batch });
-              count += batch.length;
+              processed += batch.length;
             }
 
-            await redis.set(`import:${job.id}`, count);
-            notify({ message: "CSV import completed" });
+            await redis.set(`import:${job.id}`, processed);
+            await redis.set(`import:${job.id}:status`, "completed");
 
-            resolve(true);
+            console.info(`[WORKER] CSV import completed (${processed} rows)`);
+
+            resolve();
           } catch (err) {
             reject(err);
           }
         });
 
-        stream.on("error", reject);
+        stream.on("error", (err) => {
+          reject(err);
+        });
       });
     }
   },
-  { connection: redis }
+  {
+    connection: redis,
+    concurrency: 1,
+  }
 );
+
+console.info("[WORKER] Employee worker initialized");
